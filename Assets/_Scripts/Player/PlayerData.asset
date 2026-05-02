@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 63f7e3671d90d0549ad4ed909f3a3937, type: 3}
+  m_Name: PlayerData
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerData
+  movement_speed: 9
+  jump_force: 13
+  jump_start_time: 0.25
+  fall_multiplier: 3
+  ground_check_radius: 0.1
+  ground_layer:
+    serializedVersion: 2
+    m_Bits: 64
+  coyote_time: 0.1
+  hang_time_gravity: 0.1
+  hang_time: 0.5
+  release_jump_vel_modifier: 2
