@@ -24,3 +24,4 @@ MonoBehaviour:
   hang_time_gravity: 0.1
   hang_time: 0.5
   release_jump_vel_modifier: 2
+  attack_1_step_value: 3

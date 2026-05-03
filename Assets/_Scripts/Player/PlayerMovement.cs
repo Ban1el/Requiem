@@ -21,13 +21,17 @@ public class PlayerMovement : MonoBehaviour
     private float coyote_time_remaining;
     private bool can_coyote_jump = false;
     private bool hang_time_active = false;
+    private bool isAttacking = false;
+    private bool canMove = true;
+    private bool isAnimating = false;
+    private float stepValue = 0f;
     enum PlayerState
     {
         Idle,
         Running,
         Airborne,
         Falling,
-        Attack1
+        GroundAttack
     }
     PlayerState state;
 
@@ -75,6 +79,9 @@ public class PlayerMovement : MonoBehaviour
             case PlayerState.Airborne:
                 UpdateAirborne();
                 break;
+            case PlayerState.GroundAttack:
+                UpdateGroundAttack();
+                break;
         }
     }
 
@@ -82,7 +89,12 @@ public class PlayerMovement : MonoBehaviour
     {
         if (IsGrounded())
         {
-            if (xInput == 0)
+            if (isAttacking)
+            {
+                state = PlayerState.GroundAttack;
+                StartAttack();
+            }
+            else if (xInput == 0)
             {
                 state = PlayerState.Idle;
                 StartIdle();
@@ -103,16 +115,27 @@ public class PlayerMovement : MonoBehaviour
     private void StartIdle()
     {
         animator.Play("Idle");
+        canMove = true;
     }
 
     private void StartRunning()
     {
         animator.Play("Run");
+        canMove = true;
     }
 
     private void StartAirborne()
     {
-        animator.Play("Jump");
+        //animator.Play("Jump");
+    }
+
+    private void StartAttack()
+    {
+        StopVelocity();
+        stepValue = playerData.attack_1_step_value;
+        canMove = false;
+        isAnimating = true;
+        animator.Play("Attack-1");
     }
 
     private void UpdateIdle()
@@ -125,6 +148,9 @@ public class PlayerMovement : MonoBehaviour
 
     private void UpdateRun()
     {
+        float velX = rb.linearVelocity.x;
+        animator.speed = Mathf.Abs(velX) / playerData.movement_speed;
+
         if (xInput == 0 && !IsGrounded())
         {
             stateComplete = true;
@@ -139,6 +165,21 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
+    private void UpdateGroundAttack()
+    {
+        Debug.Log("HEREEEEE");
+        if (!isAnimating)
+        {
+            isAttacking = false;
+            Debug.Log("Ended");
+        }
+
+        if (!isAttacking)
+        {
+            stateComplete = true;
+        }
+    }
+
     private void OnEnable()
     {
         actions.Player.Enable();
@@ -146,6 +187,7 @@ public class PlayerMovement : MonoBehaviour
         actions.Player.Jump.performed += Jump;
         actions.Player.Move.canceled += CheckInput;
         actions.Player.Jump.canceled += Jump;
+        actions.Player.Attack.performed += Attack;
     }
 
     private void OnDisable()
@@ -155,6 +197,25 @@ public class PlayerMovement : MonoBehaviour
         actions.Player.Jump.performed -= Jump;
         actions.Player.Move.canceled -= CheckInput;
         actions.Player.Jump.canceled -= Jump;
+        actions.Player.Attack.performed -= Attack;
+    }
+
+    public void StepForward()
+    {
+        float direction = is_facing_right ? 1f : -1f;
+        Debug.Log(stepValue * direction);
+        rb.linearVelocity = new Vector2(stepValue * direction, rb.linearVelocity.y);
+    }
+
+    private void StopVelocity()
+    {
+        rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+        rb.angularVelocity = 0f;
+    }
+
+    private void Attack(InputAction.CallbackContext ctx)
+    {
+        isAttacking = true;
     }
 
     private void CheckInput(InputAction.CallbackContext ctx)
@@ -165,6 +226,8 @@ public class PlayerMovement : MonoBehaviour
 
     private void Jump(InputAction.CallbackContext ctx)
     {
+        if (!canMove) return;
+
         if (
               ctx.performed && (IsGrounded() || can_coyote_jump)
            )
@@ -187,12 +250,17 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
+    public void AnimationEnd()
+    {
+        Debug.Log("Animation End");
+        isAnimating = false;
+    }
+
     private void HandleXMovement()
     {
-        rb.linearVelocity = new Vector2(xInput * playerData.movement_speed, rb.linearVelocity.y);
+        if (!canMove) return;
 
-        float velX = rb.linearVelocity.x;
-        animator.speed = Mathf.Abs(velX) / playerData.movement_speed;
+        rb.linearVelocity = new Vector2(xInput * playerData.movement_speed, rb.linearVelocity.y);
 
         //Flip the player
         if (xInput > 0.1f)
