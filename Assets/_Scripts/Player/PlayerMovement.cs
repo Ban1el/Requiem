@@ -6,9 +6,12 @@ public class PlayerMovement : MonoBehaviour
 {
     [SerializeField]
     private PlayerData playerData;
+    public Animator animator;
+    private bool stateComplete;
     private Rigidbody2D rb;
     public InputSystem_Actions actions;
-    private float horizontal_movement;
+    private float xInput;
+    private float yInput;
     private bool is_facing_right = true;
 
     [SerializeField]
@@ -18,7 +21,15 @@ public class PlayerMovement : MonoBehaviour
     private float coyote_time_remaining;
     private bool can_coyote_jump = false;
     private bool hang_time_active = false;
-    private bool can_move_horizontally = true;
+    enum PlayerState
+    {
+        Idle,
+        Running,
+        Airborne,
+        Falling,
+        Attack1
+    }
+    PlayerState state;
 
     private void Awake()
     {
@@ -34,7 +45,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void FixedUpdate()
     {
-        HorizontalMovement();
+        HandleXMovement();
     }
 
     private void Update()
@@ -42,27 +53,114 @@ public class PlayerMovement : MonoBehaviour
         Falling();
         CoyoteTimer();
         FlipPlayer();
+
+        if (stateComplete)
+        {
+            SelectState();
+        }
+
+        UpdateState();
+    }
+
+    private void UpdateState()
+    {
+        switch (state)
+        {
+            case PlayerState.Idle:
+                UpdateIdle();
+                break;
+            case PlayerState.Running:
+                UpdateRun();
+                break;
+            case PlayerState.Airborne:
+                UpdateAirborne();
+                break;
+        }
+    }
+
+    private void SelectState()
+    {
+        if (IsGrounded())
+        {
+            if (xInput == 0)
+            {
+                state = PlayerState.Idle;
+                StartIdle();
+            }
+            else
+            {
+                state = PlayerState.Running;
+                StartRunning();
+            }
+        }
+        else
+        {
+            state = PlayerState.Airborne;
+            StartAirborne();
+        }
+    }
+
+    private void StartIdle()
+    {
+        animator.Play("Idle");
+    }
+
+    private void StartRunning()
+    {
+        animator.Play("Run");
+    }
+
+    private void StartAirborne()
+    {
+        animator.Play("Jump");
+    }
+
+    private void UpdateIdle()
+    {
+        if (IsGrounded() || xInput == 0)
+        {
+            stateComplete = true;
+        }
+    }
+
+    private void UpdateRun()
+    {
+        if (xInput == 0 && !IsGrounded())
+        {
+            stateComplete = true;
+        }
+    }
+
+    private void UpdateAirborne()
+    {
+        if (IsGrounded())
+        {
+            stateComplete = true;
+        }
     }
 
     private void OnEnable()
     {
         actions.Player.Enable();
-        actions.Player.Move.performed += SetHorizontalValue;
+        actions.Player.Move.performed += CheckInput;
         actions.Player.Jump.performed += Jump;
-        actions.Player.Move.canceled += SetHorizontalValue;
+        actions.Player.Move.canceled += CheckInput;
+        actions.Player.Jump.canceled += Jump;
     }
 
     private void OnDisable()
     {
         actions.Player.Disable();
-        actions.Player.Move.performed -= SetHorizontalValue;
+        actions.Player.Move.performed -= CheckInput;
         actions.Player.Jump.performed -= Jump;
-        actions.Player.Move.canceled -= SetHorizontalValue;
+        actions.Player.Move.canceled -= CheckInput;
+        actions.Player.Jump.canceled -= Jump;
     }
 
-    private void SetHorizontalValue(InputAction.CallbackContext ctx)
+    private void CheckInput(InputAction.CallbackContext ctx)
     {
-        horizontal_movement = ctx.ReadValue<Vector2>().x;
+        xInput = ctx.ReadValue<Vector2>().x;
+        yInput = ctx.ReadValue<Vector2>().y;
     }
 
     private void Jump(InputAction.CallbackContext ctx)
@@ -89,20 +187,20 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    private void HorizontalMovement()
+    private void HandleXMovement()
     {
-        if (can_move_horizontally)
-        {
-            rb.linearVelocity = new Vector2(horizontal_movement * playerData.movement_speed, rb.linearVelocity.y);
-        }
+        rb.linearVelocity = new Vector2(xInput * playerData.movement_speed, rb.linearVelocity.y);
+
+        float velX = rb.linearVelocity.x;
+        animator.speed = Mathf.Abs(velX) / playerData.movement_speed;
 
         //Flip the player
-        if (horizontal_movement > 0.1f)
+        if (xInput > 0.1f)
         {
             is_facing_right = true;
         }
 
-        if (horizontal_movement < -0.1f)
+        if (xInput < -0.1f)
         {
             is_facing_right = false;
         }

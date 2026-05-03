@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PlayerData
   m_EditorClassIdentifier: Assembly-CSharp::PlayerData
   movement_speed: 9
-  jump_force: 13
+  jump_force: 10
   jump_start_time: 0.25
   fall_multiplier: 3
   ground_check_radius: 0.1
