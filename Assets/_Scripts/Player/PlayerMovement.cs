@@ -114,6 +114,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void StartIdle()
     {
+        stateComplete = false;
         animator.Play("Idle");
         canMove = true;
     }
@@ -131,6 +132,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void StartAttack()
     {
+        stateComplete = false;
         StopVelocity();
         stepValue = playerData.attack_1_step_value;
         canMove = false;
@@ -167,7 +169,6 @@ public class PlayerMovement : MonoBehaviour
 
     private void UpdateGroundAttack()
     {
-        Debug.Log("HEREEEEE");
         if (!isAnimating)
         {
             isAttacking = false;
@@ -178,6 +179,7 @@ public class PlayerMovement : MonoBehaviour
         {
             stateComplete = true;
         }
+        Debug.Log(isAnimating);
     }
 
     private void OnEnable()
@@ -278,11 +280,11 @@ public class PlayerMovement : MonoBehaviour
     {
         if (is_facing_right)
         {
-            transform.rotation = Quaternion.Euler(0f, 0f, 0f);
+            transform.localScale = new Vector3(1f, 1f, 1f);
         }
         else
         {
-            transform.rotation = Quaternion.Euler(0f, -180f, 0f);
+            transform.localScale = new Vector3(-1f, 1f, 1f);
         }
     }
     private void Falling()
