@@ -14,6 +14,11 @@ public class PlayerAnimationEvents : MonoBehaviour
         playerMovement.AnimationEnd();
     }
 
+    public void OnCanAttack()
+    {
+        playerMovement.CanAttack();
+    }
+
     public void OnStepForward()
     {
         playerMovement.StepForward();

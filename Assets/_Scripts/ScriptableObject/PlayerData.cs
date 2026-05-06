@@ -17,4 +17,6 @@ public class PlayerData : ScriptableObject
     public float release_jump_vel_modifier = 2f;
     [Header("Animation Settings")]
     public float attack_1_step_value = 0f;
+    public float attack_2_step_value = 0f;
+    public float dodge_roll_step_value = 0f;
 }

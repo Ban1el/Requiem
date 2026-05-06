@@ -1,4 +1,5 @@
 using System;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -18,22 +19,37 @@ public class PlayerMovement : MonoBehaviour
     private Transform ground_check;
     private float default_gravity_scale;
     private bool is_jumping = false;
+    private bool is_dodge_rolling = false;
     private float coyote_time_remaining;
     private bool can_coyote_jump = false;
     private bool hang_time_active = false;
-    private bool isAttacking = false;
     private bool canMove = true;
     private bool isAnimating = false;
     private float stepValue = 0f;
+
+    //Attack variables
+    private bool isGroundAttacking = false;
+    private bool canAttack = true;
+
+
     enum PlayerState
     {
         Idle,
         Running,
         Airborne,
         Falling,
-        GroundAttack
+        GroundAttack,
+        DodgeRoll
+    }
+
+    enum GroundAttackState
+    {
+        attack_1,
+        attack_2,
+        attack_3
     }
     PlayerState state;
+    GroundAttackState groundAttackState;
 
     private void Awake()
     {
@@ -82,6 +98,9 @@ public class PlayerMovement : MonoBehaviour
             case PlayerState.GroundAttack:
                 UpdateGroundAttack();
                 break;
+            case PlayerState.DodgeRoll:
+                UpdateDodgeRoll();
+                break;
         }
     }
 
@@ -89,10 +108,15 @@ public class PlayerMovement : MonoBehaviour
     {
         if (IsGrounded())
         {
-            if (isAttacking)
+            if (isGroundAttacking)
             {
                 state = PlayerState.GroundAttack;
-                StartAttack();
+                StartGroundAttack1();
+            }
+            else if (is_dodge_rolling)
+            {
+                state = PlayerState.DodgeRoll;
+                StartDodgeRoll();
             }
             else if (xInput == 0)
             {
@@ -125,19 +149,40 @@ public class PlayerMovement : MonoBehaviour
         canMove = true;
     }
 
-    private void StartAirborne()
+    private void StartDodgeRoll()
     {
-        //animator.Play("Jump");
+        stateComplete = false;
+        StopVelocity();
+        stepValue = playerData.dodge_roll_step_value;
+        isAnimating = true;
+        canMove = false;
+        animator.Play("Dodge");
     }
 
-    private void StartAttack()
+    private void StartAirborne()
+    {
+        animator.Play("Jump");
+    }
+
+    private void StartGroundAttack1()
     {
         stateComplete = false;
         StopVelocity();
         stepValue = playerData.attack_1_step_value;
+        groundAttackState = GroundAttackState.attack_1;
         canMove = false;
         isAnimating = true;
         animator.Play("Attack-1");
+    }
+
+    private void StartGroundAttack2()
+    {
+        StopVelocity();
+        stepValue = playerData.attack_2_step_value;
+        groundAttackState = GroundAttackState.attack_2;
+        canMove = false;
+        isAnimating = true;
+        animator.Play("Attack-2");
     }
 
     private void UpdateIdle()
@@ -171,15 +216,26 @@ public class PlayerMovement : MonoBehaviour
     {
         if (!isAnimating)
         {
-            isAttacking = false;
-            Debug.Log("Ended");
+            isGroundAttacking = false;
         }
 
-        if (!isAttacking)
+        if (!isGroundAttacking)
         {
             stateComplete = true;
         }
-        Debug.Log(isAnimating);
+    }
+
+    private void UpdateDodgeRoll()
+    {
+        if (!isAnimating)
+        {
+            is_dodge_rolling = false;
+        }
+
+        if (!is_dodge_rolling)
+        {
+            stateComplete = true;
+        }
     }
 
     private void OnEnable()
@@ -190,6 +246,7 @@ public class PlayerMovement : MonoBehaviour
         actions.Player.Move.canceled += CheckInput;
         actions.Player.Jump.canceled += Jump;
         actions.Player.Attack.performed += Attack;
+        actions.Player.Sprint.performed += DodgeRoll;
     }
 
     private void OnDisable()
@@ -200,6 +257,7 @@ public class PlayerMovement : MonoBehaviour
         actions.Player.Move.canceled -= CheckInput;
         actions.Player.Jump.canceled -= Jump;
         actions.Player.Attack.performed -= Attack;
+        actions.Player.Sprint.performed -= DodgeRoll;
     }
 
     public void StepForward()
@@ -217,7 +275,29 @@ public class PlayerMovement : MonoBehaviour
 
     private void Attack(InputAction.CallbackContext ctx)
     {
-        isAttacking = true;
+        if (!isGroundAttacking)
+            isGroundAttacking = true;
+
+        if (isGroundAttacking && canAttack)
+        {
+            SelectNextGroundAttack();
+        }
+    }
+
+    private void SelectNextGroundAttack()
+    {
+        switch (groundAttackState)
+        {
+            case GroundAttackState.attack_1:
+                StartGroundAttack2();
+                break;
+        }
+    }
+
+    private void DodgeRoll(InputAction.CallbackContext ctx)
+    {
+        if (!is_dodge_rolling)
+            is_dodge_rolling = true;
     }
 
     private void CheckInput(InputAction.CallbackContext ctx)
@@ -250,6 +330,12 @@ public class PlayerMovement : MonoBehaviour
                 rb.linearVelocity.y / playerData.release_jump_vel_modifier
             );
         }
+    }
+
+    public void CanAttack()
+    {
+        Debug.Log("Animation End");
+        canAttack = true;
     }
 
     public void AnimationEnd()
