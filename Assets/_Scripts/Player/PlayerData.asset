@@ -25,4 +25,5 @@ MonoBehaviour:
   hang_time: 0.5
   release_jump_vel_modifier: 2
   attack_1_step_value: 4
-  dodge_roll_step_value: 5
+  attack_2_step_value: 4
+  dodge_roll_step_value: 8

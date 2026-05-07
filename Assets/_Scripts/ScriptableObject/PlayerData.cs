@@ -18,5 +18,6 @@ public class PlayerData : ScriptableObject
     [Header("Animation Settings")]
     public float attack_1_step_value = 0f;
     public float attack_2_step_value = 0f;
+    public float attack_3_step_value = 0f;
     public float dodge_roll_step_value = 0f;
 }

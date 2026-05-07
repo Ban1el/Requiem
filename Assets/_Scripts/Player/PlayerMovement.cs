@@ -1,4 +1,5 @@
 using System;
+using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -30,6 +31,11 @@ public class PlayerMovement : MonoBehaviour
     //Attack variables
     private bool isGroundAttacking = false;
     private bool canAttack = true;
+
+
+    //Debugging
+    [SerializeField]
+    private TextMeshProUGUI stateIndicator;
 
 
     enum PlayerState
@@ -80,6 +86,8 @@ public class PlayerMovement : MonoBehaviour
         }
 
         UpdateState();
+
+        stateIndicator.text = $"State: {state}\nCan Move: {canMove}\nDodge Rolling: {is_dodge_rolling}\nGround Attacking: {isGroundAttacking}\nState Completed:{stateComplete}\nIsAnimating:{isAnimating}";
     }
 
     private void UpdateState()
@@ -108,17 +116,7 @@ public class PlayerMovement : MonoBehaviour
     {
         if (IsGrounded())
         {
-            if (isGroundAttacking)
-            {
-                state = PlayerState.GroundAttack;
-                StartGroundAttack1();
-            }
-            else if (is_dodge_rolling)
-            {
-                state = PlayerState.DodgeRoll;
-                StartDodgeRoll();
-            }
-            else if (xInput == 0)
+            if (xInput == 0)
             {
                 state = PlayerState.Idle;
                 StartIdle();
@@ -139,23 +137,32 @@ public class PlayerMovement : MonoBehaviour
     private void StartIdle()
     {
         stateComplete = false;
+        animator.speed = 1f;
         animator.Play("Idle");
         canMove = true;
+        canAttack = true;
     }
 
     private void StartRunning()
     {
+        stateComplete = false;
+        animator.speed = 1f;
         animator.Play("Run");
         canMove = true;
+        canAttack = true;
     }
 
     private void StartDodgeRoll()
     {
         stateComplete = false;
+        animator.speed = 1f;
+        canMove = false;
+        canAttack = false;
+        state = PlayerState.DodgeRoll;
+        is_dodge_rolling = true;
         StopVelocity();
         stepValue = playerData.dodge_roll_step_value;
         isAnimating = true;
-        canMove = false;
         animator.Play("Dodge");
     }
 
@@ -167,10 +174,12 @@ public class PlayerMovement : MonoBehaviour
     private void StartGroundAttack1()
     {
         stateComplete = false;
+        animator.speed = 1f;
         StopVelocity();
         stepValue = playerData.attack_1_step_value;
         groundAttackState = GroundAttackState.attack_1;
         canMove = false;
+        canAttack = false;
         isAnimating = true;
         animator.Play("Attack-1");
     }
@@ -178,16 +187,30 @@ public class PlayerMovement : MonoBehaviour
     private void StartGroundAttack2()
     {
         StopVelocity();
+        animator.speed = 1f;
         stepValue = playerData.attack_2_step_value;
         groundAttackState = GroundAttackState.attack_2;
         canMove = false;
+        canAttack = false;
         isAnimating = true;
         animator.Play("Attack-2");
     }
 
+    private void StartGroundAttack3()
+    {
+        StopVelocity();
+        animator.speed = 1f;
+        stepValue = playerData.attack_3_step_value;
+        groundAttackState = GroundAttackState.attack_3;
+        canMove = false;
+        canAttack = false;
+        isAnimating = true;
+        animator.Play("Attack-3");
+    }
+
     private void UpdateIdle()
     {
-        if (IsGrounded() || xInput == 0)
+        if (!IsGrounded() || xInput != 0)
         {
             stateComplete = true;
         }
@@ -195,10 +218,10 @@ public class PlayerMovement : MonoBehaviour
 
     private void UpdateRun()
     {
-        float velX = rb.linearVelocity.x;
-        animator.speed = Mathf.Abs(velX) / playerData.movement_speed;
+        // float velX = rb.linearVelocity.x;
+        // animator.speed = Mathf.Abs(velX) / playerData.movement_speed;
 
-        if (xInput == 0 && !IsGrounded())
+        if (xInput == 0 || !IsGrounded())
         {
             stateComplete = true;
         }
@@ -214,6 +237,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void UpdateGroundAttack()
     {
+        Debug.Log("Attack state");
         if (!isAnimating)
         {
             isGroundAttacking = false;
@@ -227,6 +251,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void UpdateDodgeRoll()
     {
+        Debug.Log("Roll state");
         if (!isAnimating)
         {
             is_dodge_rolling = false;
@@ -263,7 +288,6 @@ public class PlayerMovement : MonoBehaviour
     public void StepForward()
     {
         float direction = is_facing_right ? 1f : -1f;
-        Debug.Log(stepValue * direction);
         rb.linearVelocity = new Vector2(stepValue * direction, rb.linearVelocity.y);
     }
 
@@ -275,11 +299,18 @@ public class PlayerMovement : MonoBehaviour
 
     private void Attack(InputAction.CallbackContext ctx)
     {
-        if (!isGroundAttacking)
-            isGroundAttacking = true;
+        if (!canAttack) return;
 
-        if (isGroundAttacking && canAttack)
+        if (!isGroundAttacking)
         {
+            stateComplete = false;
+            isGroundAttacking = true;
+            state = PlayerState.GroundAttack;
+            StartGroundAttack1();
+        }
+        else if (isGroundAttacking)
+        {
+            stateComplete = false;
             SelectNextGroundAttack();
         }
     }
@@ -291,13 +322,19 @@ public class PlayerMovement : MonoBehaviour
             case GroundAttackState.attack_1:
                 StartGroundAttack2();
                 break;
+
+            case GroundAttackState.attack_2:
+                StartGroundAttack3();
+                break;
         }
     }
 
     private void DodgeRoll(InputAction.CallbackContext ctx)
     {
-        if (!is_dodge_rolling)
-            is_dodge_rolling = true;
+        if (isGroundAttacking) return;
+
+        if (!is_dodge_rolling && canMove)
+            StartDodgeRoll();
     }
 
     private void CheckInput(InputAction.CallbackContext ctx)
@@ -334,13 +371,12 @@ public class PlayerMovement : MonoBehaviour
 
     public void CanAttack()
     {
-        Debug.Log("Animation End");
         canAttack = true;
+        Debug.Log(canAttack);
     }
 
     public void AnimationEnd()
     {
-        Debug.Log("Animation End");
         isAnimating = false;
     }
 
