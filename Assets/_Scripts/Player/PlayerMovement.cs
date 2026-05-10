@@ -87,7 +87,7 @@ public class PlayerMovement : MonoBehaviour
 
         UpdateState();
 
-        stateIndicator.text = $"State: {state}\nCan Move: {canMove}\nDodge Rolling: {is_dodge_rolling}\nGround Attacking: {isGroundAttacking}\nState Completed:{stateComplete}\nIsAnimating:{isAnimating}";
+        stateIndicator.text = $"State: {state}";
     }
 
     private void UpdateState()

@@ -26,4 +26,5 @@ MonoBehaviour:
   release_jump_vel_modifier: 2
   attack_1_step_value: 4
   attack_2_step_value: 4
+  attack_3_step_value: 7
   dodge_roll_step_value: 8
