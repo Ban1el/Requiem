@@ -31,7 +31,9 @@ public class PlayerMovement : MonoBehaviour
     //Attack variables
     private bool isGroundAttacking = false;
     private bool canAttack = true;
-
+    private bool hitboxActive = false;
+    [SerializeField]
+    private BoxCollider2D hitbox;
 
     //Debugging
     [SerializeField]
@@ -237,7 +239,6 @@ public class PlayerMovement : MonoBehaviour
 
     private void UpdateGroundAttack()
     {
-        Debug.Log("Attack state");
         if (!isAnimating)
         {
             isGroundAttacking = false;
@@ -372,7 +373,6 @@ public class PlayerMovement : MonoBehaviour
     public void CanAttack()
     {
         canAttack = true;
-        Debug.Log(canAttack);
     }
 
     public void AnimationEnd()
@@ -453,11 +453,72 @@ public class PlayerMovement : MonoBehaviour
         return hit != null;
     }
 
+    public void OnAttackHitboxActive()
+    {
+        Debug.Log("Here");
+        hitbox.enabled = true;
+        ApplyHitboxSize();
+    }
+
+    public void OnAttackHitboxInActive()
+    {
+        hitbox.enabled = false;
+    }
+
+    [ContextMenu("Preview Hitbox Size")]
+    private void PreviewHitboxSize()
+    {
+        if (hitbox == null) return;
+        hitbox.enabled = true;
+        ApplyHitboxSize();
+    }
+
+    [ContextMenu("Hide hitbox Size")]
+    private void ResetHitbox()
+    {
+        if (hitbox == null) return;
+        hitbox.enabled = false;
+    }
+
+    private void ApplyHitboxSize()
+    {
+        float width = playerData.attack_1_hitbox_left + playerData.attack_1_hitbox_right;
+        float height = playerData.attack_1_hitbox_top + playerData.attack_1_hitbox_bottom;
+
+        float offsetX = (playerData.attack_1_hitbox_right - playerData.attack_1_hitbox_left) / 2f;
+        float offsetY = (playerData.attack_1_hitbox_top - playerData.attack_1_hitbox_bottom) / 2f;
+
+        hitbox.size = new Vector2(width, height);
+        hitbox.offset = new Vector2(offsetX, offsetY);
+    }
+
+    private void OnValidate()
+    {
+        if (playerData == null || hitbox == null) return;
+
+        // Resubscribe every time to avoid duplicate subscriptions
+        playerData.OnPlayerDataChanged -= UpdateHitboxPreview;
+        playerData.OnPlayerDataChanged += UpdateHitboxPreview;
+
+        UpdateHitboxPreview();
+    }
+
+    private void UpdateHitboxPreview()
+    {
+        if (hitbox == null || playerData == null) return;
+        ApplyHitboxSize();
+    }
+
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(ground_check.position, playerData.ground_check_radius);
+
+        if (hitbox == null) return;
+
+        Gizmos.color = hitbox.enabled ? Color.red : Color.green;
+
+        // Draw the hitbox using its world position + size
+        Gizmos.DrawWireCube(hitbox.bounds.center, hitbox.bounds.size);
     }
-
-
 }

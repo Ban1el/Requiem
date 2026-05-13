@@ -1,9 +1,8 @@
-using System;
 using System.Collections;
 using TMPro;
 using UnityEngine;
 
-public class EnemyMovement : MonoBehaviour
+public class EnemyMovement : MonoBehaviour, IDamageable
 {
     [SerializeField]
     private Transform pointA;
@@ -30,12 +29,17 @@ public class EnemyMovement : MonoBehaviour
     [SerializeField]
     private float approachStopDistance = 1f;
 
+    [SerializeField]
+    private float health = 100f;
+
     enum EnemyState
     {
         Idle,
         Patrol,
         ApproachPlayer,
-        Attack
+        Attack,
+        Stagger,
+        KnockBack
     }
 
     [SerializeField] private float detectionRadius = 5f;
@@ -105,6 +109,10 @@ public class EnemyMovement : MonoBehaviour
             case EnemyState.ApproachPlayer:
                 UpdateApproachPlayer();
                 break;
+
+            case EnemyState.Stagger:
+                UpdateStagger();
+                break;
         }
     }
 
@@ -150,6 +158,16 @@ public class EnemyMovement : MonoBehaviour
         }
     }
 
+    private void StartStagger()
+    {
+        stateComplete = false;
+    }
+
+    private void UpdateStagger()
+    {
+
+    }
+
     private void PickRandomTarget()
     {
         float randomX = UnityEngine.Random.Range(pointA.position.x, pointB.position.x);
@@ -186,5 +204,14 @@ public class EnemyMovement : MonoBehaviour
     {
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, detectionRadius);
+    }
+
+    public void TakeDamage(float amount, float pushBackValue)
+    {
+        stateComplete = false;
+        state = EnemyState.Stagger;
+        StartStagger();
+        rb.AddForce(new Vector2(pushBackValue, rb.linearVelocity.y), ForceMode2D.Impulse);
+        health -= amount;
     }
 }
