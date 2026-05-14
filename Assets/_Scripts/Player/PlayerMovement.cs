@@ -34,6 +34,12 @@ public class PlayerMovement : MonoBehaviour
     private bool hitboxActive = false;
     [SerializeField]
     private BoxCollider2D hitbox;
+    private float hit_box_left = 0f;
+    private float hit_box_right = 0f;
+    private float hit_box_top = 0f;
+    private float hit_box_bottom = 0f;
+    [Header("Hitbox Preview")]
+    [SerializeField] private GroundAttackState previewAttackState = GroundAttackState.attack_1;
 
     //Debugging
     [SerializeField]
@@ -67,6 +73,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void Start()
     {
+        hitbox.enabled = false;
         coyote_time_remaining = playerData.coyote_time;
         default_gravity_scale = rb.gravityScale;
     }
@@ -177,6 +184,12 @@ public class PlayerMovement : MonoBehaviour
     {
         stateComplete = false;
         animator.speed = 1f;
+
+        hit_box_left = playerData.attack_1_hitbox_left;
+        hit_box_right = playerData.attack_1_hitbox_right;
+        hit_box_top = playerData.attack_1_hitbox_top;
+        hit_box_bottom = playerData.attack_1_hitbox_bottom;
+
         StopVelocity();
         stepValue = playerData.attack_1_step_value;
         groundAttackState = GroundAttackState.attack_1;
@@ -190,6 +203,12 @@ public class PlayerMovement : MonoBehaviour
     {
         StopVelocity();
         animator.speed = 1f;
+
+        hit_box_left = playerData.attack_2_hitbox_left;
+        hit_box_right = playerData.attack_2_hitbox_right;
+        hit_box_top = playerData.attack_2_hitbox_top;
+        hit_box_bottom = playerData.attack_2_hitbox_bottom;
+
         stepValue = playerData.attack_2_step_value;
         groundAttackState = GroundAttackState.attack_2;
         canMove = false;
@@ -202,6 +221,12 @@ public class PlayerMovement : MonoBehaviour
     {
         StopVelocity();
         animator.speed = 1f;
+
+        hit_box_left = playerData.attack_3_hitbox_left;
+        hit_box_right = playerData.attack_3_hitbox_right;
+        hit_box_top = playerData.attack_3_hitbox_top;
+        hit_box_bottom = playerData.attack_3_hitbox_bottom;
+
         stepValue = playerData.attack_3_step_value;
         groundAttackState = GroundAttackState.attack_3;
         canMove = false;
@@ -252,7 +277,6 @@ public class PlayerMovement : MonoBehaviour
 
     private void UpdateDodgeRoll()
     {
-        Debug.Log("Roll state");
         if (!isAnimating)
         {
             is_dodge_rolling = false;
@@ -455,7 +479,6 @@ public class PlayerMovement : MonoBehaviour
 
     public void OnAttackHitboxActive()
     {
-        Debug.Log("Here");
         hitbox.enabled = true;
         ApplyHitboxSize();
     }
@@ -465,10 +488,36 @@ public class PlayerMovement : MonoBehaviour
         hitbox.enabled = false;
     }
 
+    private void SetAttackHitbox()
+    {
+        switch (previewAttackState)
+        {
+            case GroundAttackState.attack_1:
+                hit_box_left = playerData.attack_1_hitbox_left;
+                hit_box_right = playerData.attack_1_hitbox_right;
+                hit_box_top = playerData.attack_1_hitbox_top;
+                hit_box_bottom = playerData.attack_1_hitbox_bottom;
+                break;
+            case GroundAttackState.attack_2:
+                hit_box_left = playerData.attack_2_hitbox_left;
+                hit_box_right = playerData.attack_2_hitbox_right;
+                hit_box_top = playerData.attack_2_hitbox_top;
+                hit_box_bottom = playerData.attack_2_hitbox_bottom;
+                break;
+            case GroundAttackState.attack_3:
+                hit_box_left = playerData.attack_3_hitbox_left;
+                hit_box_right = playerData.attack_3_hitbox_right;
+                hit_box_top = playerData.attack_3_hitbox_top;
+                hit_box_bottom = playerData.attack_3_hitbox_bottom;
+                break;
+        }
+    }
+
     [ContextMenu("Preview Hitbox Size")]
     private void PreviewHitboxSize()
     {
-        if (hitbox == null) return;
+        if (hitbox == null || playerData == null) return;
+        SetAttackHitbox();
         hitbox.enabled = true;
         ApplyHitboxSize();
     }
@@ -482,11 +531,11 @@ public class PlayerMovement : MonoBehaviour
 
     private void ApplyHitboxSize()
     {
-        float width = playerData.attack_1_hitbox_left + playerData.attack_1_hitbox_right;
-        float height = playerData.attack_1_hitbox_top + playerData.attack_1_hitbox_bottom;
+        float width = hit_box_left + hit_box_right;
+        float height = hit_box_top + hit_box_bottom;
 
-        float offsetX = (playerData.attack_1_hitbox_right - playerData.attack_1_hitbox_left) / 2f;
-        float offsetY = (playerData.attack_1_hitbox_top - playerData.attack_1_hitbox_bottom) / 2f;
+        float offsetX = (hit_box_right - hit_box_left) / 2f;
+        float offsetY = (hit_box_top - hit_box_bottom) / 2f;
 
         hitbox.size = new Vector2(width, height);
         hitbox.offset = new Vector2(offsetX, offsetY);
@@ -506,7 +555,17 @@ public class PlayerMovement : MonoBehaviour
     private void UpdateHitboxPreview()
     {
         if (hitbox == null || playerData == null) return;
+        SetAttackHitbox();
         ApplyHitboxSize();
+    }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other.CompareTag("Enemy"))
+        {
+            IDamageable damageable = other.GetComponent<IDamageable>();
+            damageable?.TakeDamage(5f, 3f, transform.position);
+        }
     }
 
     private void OnDrawGizmos()

@@ -31,6 +31,8 @@ public class EnemyMovement : MonoBehaviour, IDamageable
 
     [SerializeField]
     private float health = 100f;
+    private bool isStaggered = false;
+    private bool is_facing_right = true;
 
     enum EnemyState
     {
@@ -63,6 +65,7 @@ public class EnemyMovement : MonoBehaviour, IDamageable
     private void FixedUpdate()
     {
         UpdateFixedState();
+        Flip();
     }
 
     private void Update()
@@ -174,6 +177,17 @@ public class EnemyMovement : MonoBehaviour, IDamageable
         currentTarget = new Vector2(randomX, transform.position.y);
     }
 
+    private void Flip()
+    {
+        if (rb.linearVelocity.x > 0.1f)
+            is_facing_right = true;
+        else if (rb.linearVelocity.x < -0.1f)
+            is_facing_right = false;
+
+        transform.localScale = is_facing_right ? new Vector3(1f, 1f, 1f) : new Vector3(-1f, 1f, 1f);
+    }
+
+
     private IEnumerator PauseAndPickNext()
     {
         isPausing = true;
@@ -185,6 +199,8 @@ public class EnemyMovement : MonoBehaviour, IDamageable
 
     private void DetectPlayer()
     {
+        if (isStaggered) return;
+
         Collider2D player = Physics2D.OverlapCircle(transform.position, detectionRadius, playerLayer);
 
         if (player != null)
@@ -206,12 +222,15 @@ public class EnemyMovement : MonoBehaviour, IDamageable
         Gizmos.DrawWireSphere(transform.position, detectionRadius);
     }
 
-    public void TakeDamage(float amount, float pushBackValue)
+    public void TakeDamage(float amount, float pushBackValue, Vector2 hitPosition)
     {
+        isStaggered = true;
         stateComplete = false;
         state = EnemyState.Stagger;
         StartStagger();
-        rb.AddForce(new Vector2(pushBackValue, rb.linearVelocity.y), ForceMode2D.Impulse);
+
+        float direction = hitPosition.x < transform.position.x ? 1f : -1f;
+        rb.AddForce(new Vector2(pushBackValue * direction, 0f), ForceMode2D.Impulse);
         health -= amount;
     }
 }
