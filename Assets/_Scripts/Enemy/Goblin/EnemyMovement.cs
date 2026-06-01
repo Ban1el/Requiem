@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class EnemyMovement : MonoBehaviour, IDamageable
 {
+    public Animator animator;
+
     [SerializeField]
     private Transform pointA;
 
@@ -34,10 +36,20 @@ public class EnemyMovement : MonoBehaviour, IDamageable
     private bool isStaggered = false;
     private bool is_facing_right = true;
 
+    [SerializeField]
+    private float staggerTime = 5f;
+    private Coroutine staggerCoroutine;
+    private bool playerInAttackRange = false;
+    private bool isAnimating = false;
+    private bool isAlerted = false;
+    [SerializeField]
+    private CircleCollider2D playerDetectionCollider;
+
     enum EnemyState
     {
         Idle,
         Patrol,
+        Alert,
         ApproachPlayer,
         Attack,
         Stagger,
@@ -70,8 +82,6 @@ public class EnemyMovement : MonoBehaviour, IDamageable
 
     private void Update()
     {
-        DetectPlayer();
-
         if (stateComplete)
         {
             SelectState();
@@ -79,17 +89,28 @@ public class EnemyMovement : MonoBehaviour, IDamageable
 
         UpdateState();
 
-        stateIndicator.text = $"State: {state}\nPlayer Detected {playerDetected}\nPausing {isPausing}";
+        stateIndicator.text = $"State: {state}\nHealth: {health}";
     }
 
     private void SelectState()
     {
+        // if (playerInAttackRange)
+        // {
+        //     state = EnemyState.Attack;
+        //     StartAttack();
+        // }
         if (!playerDetected)
         {
             state = EnemyState.Patrol;
             StartPatrol();
         }
-        else if (playerDetected)
+        else if (playerDetected && !isAlerted)
+        {
+            Debug.Log("ALERTED");
+            state = EnemyState.Alert;
+            StartAlert();
+        }
+        else if (playerDetected && isAlerted)
         {
             state = EnemyState.ApproachPlayer;
             StartApproachPlayer();
@@ -109,6 +130,10 @@ public class EnemyMovement : MonoBehaviour, IDamageable
                 UpdatePatrol();
                 break;
 
+            case EnemyState.Alert:
+                UpdateAlert();
+                break;
+
             case EnemyState.ApproachPlayer:
                 UpdateApproachPlayer();
                 break;
@@ -119,14 +144,48 @@ public class EnemyMovement : MonoBehaviour, IDamageable
         }
     }
 
+    private void StartAttack()
+    {
+        stateComplete = false;
+    }
+
+    private void UpdateAlert()
+    {
+        if (!isAnimating)
+        {
+            Debug.Log("HERE");
+            stateComplete = true;
+        }
+    }
+
+    private void StartAlert()
+    {
+        StopMovement();
+        stateComplete = false;
+        isAnimating = true;
+        isAlerted = true;
+        animator.Play("Alert");
+    }
+
     private void StartPatrol()
     {
         stateComplete = false;
     }
 
+    private void StopMovement()
+    {
+        rb.linearVelocity = new Vector2(0, rb.linearVelocity.y);
+    }
+
     private void UpdatePatrol()
     {
-        if (isPausing) return;
+        if (isPausing)
+        {
+            animator.Play("Idle");
+            return;
+        }
+
+        animator.Play("walk");
 
         float directionX = currentTarget.x > transform.position.x ? 1f : -1f;
         Vector2 targetVelocity = new Vector2(directionX * movementSpeed, rb.linearVelocity.y);
@@ -135,7 +194,7 @@ public class EnemyMovement : MonoBehaviour, IDamageable
 
         if (dist < 0.1f)
         {
-            rb.linearVelocity = new Vector2(0, rb.linearVelocity.y);
+            StopMovement();
             StartCoroutine(PauseAndPickNext());
         }
     }
@@ -144,6 +203,7 @@ public class EnemyMovement : MonoBehaviour, IDamageable
     {
         isPausing = false;
         stateComplete = false;
+        animator.Play("Approach");
     }
 
     private void UpdateApproachPlayer()
@@ -158,6 +218,7 @@ public class EnemyMovement : MonoBehaviour, IDamageable
         {
             rb.linearVelocity = new Vector2(0, rb.linearVelocity.y);
             stateComplete = true;
+            playerInAttackRange = true;
         }
     }
 
@@ -197,23 +258,34 @@ public class EnemyMovement : MonoBehaviour, IDamageable
         stateComplete = true;
     }
 
-    private void DetectPlayer()
+    private IEnumerator StaggerWaitTime()
     {
+        yield return new WaitForSeconds(staggerTime);
+        stateComplete = true;
+    }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        Debug.Log("Triggered");
+
         if (isStaggered) return;
+        if (((1 << other.gameObject.layer) & playerLayer) == 0) return;
 
-        Collider2D player = Physics2D.OverlapCircle(transform.position, detectionRadius, playerLayer);
+        playerObj = other.gameObject;
+        playerDetected = true;
+        stateComplete = true;
+    }
 
-        if (player != null)
-        {
-            playerObj = player.gameObject;
-            playerDetected = true;
-            stateComplete = true;
-        }
-        else
-        {
-            playerDetected = false;
-            stateComplete = true;
-        }
+    private void OnTriggerExit2D(Collider2D other)
+    {
+        Debug.Log("TriggeredExit");
+
+        if (((1 << other.gameObject.layer) & playerLayer) == 0) return;
+
+        playerObj = null;
+        isAlerted = false;
+        playerDetected = false;
+        stateComplete = true;
     }
 
     private void OnDrawGizmos()
@@ -232,5 +304,37 @@ public class EnemyMovement : MonoBehaviour, IDamageable
         float direction = hitPosition.x < transform.position.x ? 1f : -1f;
         rb.AddForce(new Vector2(pushBackValue * direction, 0f), ForceMode2D.Impulse);
         health -= amount;
+
+        if (staggerCoroutine != null)
+            StopCoroutine(staggerCoroutine);
+
+        staggerCoroutine = StartCoroutine(StaggerWaitTime());
+    }
+
+    public void OnAttackHitboxActive()
+    {
+        // hitbox.enabled = true;
+        // ApplyHitboxSize();
+    }
+
+    public void OnAttackHitboxInActive()
+    {
+        // hitbox.enabled = false;
+    }
+
+    public void StepForward()
+    {
+        // float direction = is_facing_right ? 1f : -1f;
+        // rb.linearVelocity = new Vector2(stepValue * direction, rb.linearVelocity.y);
+    }
+
+    public void AnimationEnd()
+    {
+        isAnimating = false;
+    }
+
+    public void CanAttack()
+    {
+        // canAttack = true;
     }
 }

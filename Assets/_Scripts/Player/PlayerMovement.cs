@@ -67,6 +67,10 @@ public class PlayerMovement : MonoBehaviour
 
     private void Awake()
     {
+        Physics2D.IgnoreLayerCollision(
+        LayerMask.NameToLayer("Player"),
+        LayerMask.NameToLayer("Enemy")
+    );
         rb = GetComponent<Rigidbody2D>();
         actions = new InputSystem_Actions();
     }
