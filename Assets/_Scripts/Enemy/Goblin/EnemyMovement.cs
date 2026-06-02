@@ -94,19 +94,18 @@ public class EnemyMovement : MonoBehaviour, IDamageable
 
     private void SelectState()
     {
-        // if (playerInAttackRange)
-        // {
-        //     state = EnemyState.Attack;
-        //     StartAttack();
-        // }
-        if (!playerDetected)
+        if (playerInAttackRange)
+        {
+            state = EnemyState.Attack;
+            StartAttack();
+        }
+        else if (!playerDetected)
         {
             state = EnemyState.Patrol;
             StartPatrol();
         }
         else if (playerDetected && !isAlerted)
         {
-            Debug.Log("ALERTED");
             state = EnemyState.Alert;
             StartAlert();
         }
@@ -126,6 +125,10 @@ public class EnemyMovement : MonoBehaviour, IDamageable
     {
         switch (state)
         {
+            case EnemyState.Attack:
+                UpdateAttack();
+                break;
+
             case EnemyState.Patrol:
                 UpdatePatrol();
                 break;
@@ -146,14 +149,24 @@ public class EnemyMovement : MonoBehaviour, IDamageable
 
     private void StartAttack()
     {
+        animator.Play("Attack");
+        isAnimating = true;
         stateComplete = false;
+    }
+
+    private void UpdateAttack()
+    {
+        if (!isAnimating)
+        {
+            playerInAttackRange = false;
+            stateComplete = true;
+        }
     }
 
     private void UpdateAlert()
     {
         if (!isAnimating)
         {
-            Debug.Log("HERE");
             stateComplete = true;
         }
     }
@@ -220,16 +233,25 @@ public class EnemyMovement : MonoBehaviour, IDamageable
             stateComplete = true;
             playerInAttackRange = true;
         }
+        else
+        {
+            playerInAttackRange = false;
+        }
     }
 
     private void StartStagger()
     {
+        animator.Play("Stagger");
         stateComplete = false;
     }
 
     private void UpdateStagger()
     {
-
+        if (!isAnimating)
+        {
+            isStaggered = false;
+            stateComplete = true;
+        }
     }
 
     private void PickRandomTarget()
@@ -240,6 +262,12 @@ public class EnemyMovement : MonoBehaviour, IDamageable
 
     private void Flip()
     {
+        if (state == EnemyState.Stagger)
+        {
+            transform.localScale = is_facing_right ? new Vector3(1f, 1f, 1f) : new Vector3(-1f, 1f, 1f);
+            return;
+        }
+
         if (rb.linearVelocity.x > 0.1f)
             is_facing_right = true;
         else if (rb.linearVelocity.x < -0.1f)
@@ -266,8 +294,6 @@ public class EnemyMovement : MonoBehaviour, IDamageable
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        Debug.Log("Triggered");
-
         if (isStaggered) return;
         if (((1 << other.gameObject.layer) & playerLayer) == 0) return;
 
@@ -278,8 +304,6 @@ public class EnemyMovement : MonoBehaviour, IDamageable
 
     private void OnTriggerExit2D(Collider2D other)
     {
-        Debug.Log("TriggeredExit");
-
         if (((1 << other.gameObject.layer) & playerLayer) == 0) return;
 
         playerObj = null;
