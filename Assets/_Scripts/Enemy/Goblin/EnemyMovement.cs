@@ -38,10 +38,14 @@ public class EnemyMovement : MonoBehaviour, IDamageable
 
     [SerializeField]
     private float staggerTime = 5f;
+    [SerializeField]
+    private float staggerExitTime = 1.5f;
     private Coroutine staggerCoroutine;
     private bool playerInAttackRange = false;
     private bool isAnimating = false;
     private bool isAlerted = false;
+    private float stateExitTime = 0f;
+    private Coroutine pauseAndCompleteCoroutine;
     [SerializeField]
     private CircleCollider2D playerDetectionCollider;
 
@@ -89,7 +93,7 @@ public class EnemyMovement : MonoBehaviour, IDamageable
 
         UpdateState();
 
-        stateIndicator.text = $"State: {state}\nHealth: {health}";
+        stateIndicator.text = $"State: {state}\nHealth: {health}\nX: {transform.position.x}";
     }
 
     private void SelectState()
@@ -115,7 +119,6 @@ public class EnemyMovement : MonoBehaviour, IDamageable
             StartApproachPlayer();
         }
     }
-
 
     private void UpdateState()
     {
@@ -182,6 +185,7 @@ public class EnemyMovement : MonoBehaviour, IDamageable
 
     private void StartPatrol()
     {
+        isAlerted = false;
         stateComplete = false;
     }
 
@@ -243,6 +247,7 @@ public class EnemyMovement : MonoBehaviour, IDamageable
     {
         animator.Play("Stagger");
         stateComplete = false;
+        stateExitTime = staggerExitTime;
     }
 
     private void UpdateStagger()
@@ -251,6 +256,10 @@ public class EnemyMovement : MonoBehaviour, IDamageable
         {
             isStaggered = false;
             stateComplete = true;
+            // if (pauseAndCompleteCoroutine != null)
+            //     StopCoroutine(pauseAndCompleteCoroutine);
+
+            // pauseAndCompleteCoroutine = StartCoroutine(PauseAndCompleteState());
         }
     }
 
@@ -276,6 +285,17 @@ public class EnemyMovement : MonoBehaviour, IDamageable
         transform.localScale = is_facing_right ? new Vector3(1f, 1f, 1f) : new Vector3(-1f, 1f, 1f);
     }
 
+
+    private IEnumerator PauseAndCompleteState()
+    {
+        yield return new WaitForSeconds(stateExitTime);
+        CompleteState();
+    }
+
+    private void CompleteState()
+    {
+        stateComplete = true;
+    }
 
     private IEnumerator PauseAndPickNext()
     {
@@ -307,7 +327,6 @@ public class EnemyMovement : MonoBehaviour, IDamageable
         if (((1 << other.gameObject.layer) & playerLayer) == 0) return;
 
         playerObj = null;
-        isAlerted = false;
         playerDetected = false;
         stateComplete = true;
     }

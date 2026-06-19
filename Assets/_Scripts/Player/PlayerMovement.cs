@@ -101,6 +101,7 @@ public class PlayerMovement : MonoBehaviour
         UpdateState();
 
         stateIndicator.text = $"State: {state}";
+        Debug.Log(stateIndicator.text);
     }
 
     private void UpdateState()
