@@ -10,7 +10,8 @@ public class PlayerData : ScriptableObject
     {
         OnPlayerDataChanged?.Invoke();
     }
-
+    [Header("Health Settings")]
+    public float health = 100f;
     [Header("Movement Settings")]
     public float movement_speed = 9f;
     [Header("Jump Settings")]

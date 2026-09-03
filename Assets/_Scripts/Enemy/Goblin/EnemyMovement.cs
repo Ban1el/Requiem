@@ -81,7 +81,6 @@ public class EnemyMovement : MonoBehaviour, IDamageable
     private void FixedUpdate()
     {
         UpdateFixedState();
-        Flip();
     }
 
     private void Update()
@@ -214,6 +213,8 @@ public class EnemyMovement : MonoBehaviour, IDamageable
             StopMovement();
             StartCoroutine(PauseAndPickNext());
         }
+
+        Flip();
     }
 
     private void StartApproachPlayer()
@@ -241,6 +242,8 @@ public class EnemyMovement : MonoBehaviour, IDamageable
         {
             playerInAttackRange = false;
         }
+
+        Flip();
     }
 
     private void StartStagger()
@@ -271,11 +274,11 @@ public class EnemyMovement : MonoBehaviour, IDamageable
 
     private void Flip()
     {
-        if (state == EnemyState.Stagger)
-        {
-            transform.localScale = is_facing_right ? new Vector3(1f, 1f, 1f) : new Vector3(-1f, 1f, 1f);
-            return;
-        }
+        // if (state == EnemyState.Stagger)
+        // {
+        //     transform.localScale = is_facing_right ? new Vector3(1f, 1f, 1f) : new Vector3(-1f, 1f, 1f);
+        //     return;
+        // }
 
         if (rb.linearVelocity.x > 0.1f)
             is_facing_right = true;

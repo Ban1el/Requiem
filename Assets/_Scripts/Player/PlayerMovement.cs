@@ -1,5 +1,7 @@
 using System;
+using System.Collections;
 using TMPro;
+using TMPro.Examples;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -30,6 +32,7 @@ public class PlayerMovement : MonoBehaviour
 
     //Attack variables
     private bool isGroundAttacking = false;
+    private bool isAirAttacking = false;
     private bool canAttack = true;
     private bool hitboxActive = false;
     [SerializeField]
@@ -44,7 +47,21 @@ public class PlayerMovement : MonoBehaviour
     //Debugging
     [SerializeField]
     private TextMeshProUGUI stateIndicator;
+    private PlayerHealth playerHealth;
 
+    //Enemy
+    private GameObject nearestEnemy;
+    [SerializeField]
+    private Transform LockSprite;
+    [SerializeField] private float enemyDetectRadius = 5f;
+    [SerializeField] private LayerMask enemyLayer;
+    private bool airAttack = false;
+    [SerializeField]
+    private float gapCloserRangeSqr = 2f;
+    [SerializeField]
+    private float airGapCloserForcevalue = 20f;
+    [SerializeField] private float gapCloserForce = 15f;
+    [SerializeField] private float arcUpwardBias = 0.5f;
 
     enum PlayerState
     {
@@ -53,6 +70,7 @@ public class PlayerMovement : MonoBehaviour
         Airborne,
         Falling,
         GroundAttack,
+        AirGapCloser,
         DodgeRoll
     }
 
@@ -73,6 +91,9 @@ public class PlayerMovement : MonoBehaviour
     );
         rb = GetComponent<Rigidbody2D>();
         actions = new InputSystem_Actions();
+        playerHealth = GetComponent<PlayerHealth>();
+
+        playerHealth.SetMaxHealth(playerData.health);
     }
 
     private void Start()
@@ -89,6 +110,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
+        UpdateNearestEnemy();
         Falling();
         CoyoteTimer();
         FlipPlayer();
@@ -101,7 +123,7 @@ public class PlayerMovement : MonoBehaviour
         UpdateState();
 
         stateIndicator.text = $"State: {state}";
-        Debug.Log(stateIndicator.text);
+        //Debug.Log(stateIndicator.text);
     }
 
     private void UpdateState()
@@ -122,6 +144,9 @@ public class PlayerMovement : MonoBehaviour
                 break;
             case PlayerState.DodgeRoll:
                 UpdateDodgeRoll();
+                break;
+            case PlayerState.AirGapCloser:
+                UpdateAirGapCloserAttack();
                 break;
         }
     }
@@ -240,6 +265,19 @@ public class PlayerMovement : MonoBehaviour
         animator.Play("Attack-3");
     }
 
+    private void StartAirGapCloser()
+    {
+        StopVelocity();
+        isAirAttacking = true;
+        stateComplete = false;
+        animator.speed = 1f;
+        canMove = false;
+        canAttack = false;
+        isAnimating = true;
+        animator.Play("Air-Attack-Gap-Closer");
+        AddArcForceTowardsEnemy();
+    }
+
     private void UpdateIdle()
     {
         if (!IsGrounded() || xInput != 0)
@@ -293,6 +331,19 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
+    private void UpdateAirGapCloserAttack()
+    {
+        if (!isAnimating)
+        {
+            isAirAttacking = false;
+        }
+
+        if (!isAirAttacking)
+        {
+            stateComplete = true;
+        }
+    }
+
     private void OnEnable()
     {
         actions.Player.Enable();
@@ -331,18 +382,7 @@ public class PlayerMovement : MonoBehaviour
     {
         if (!canAttack) return;
 
-        if (!isGroundAttacking)
-        {
-            stateComplete = false;
-            isGroundAttacking = true;
-            state = PlayerState.GroundAttack;
-            StartGroundAttack1();
-        }
-        else if (isGroundAttacking)
-        {
-            stateComplete = false;
-            SelectNextGroundAttack();
-        }
+        TryAirAttack();
     }
 
     private void SelectNextGroundAttack()
@@ -578,6 +618,16 @@ public class PlayerMovement : MonoBehaviour
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(ground_check.position, playerData.ground_check_radius);
 
+        // Enemy detection radius
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, enemyDetectRadius);
+
+        if (nearestEnemy != null)
+        {
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawLine(transform.position, nearestEnemy.transform.position);
+        }
+
         if (hitbox == null) return;
 
         Gizmos.color = hitbox.enabled ? Color.red : Color.green;
@@ -585,4 +635,81 @@ public class PlayerMovement : MonoBehaviour
         // Draw the hitbox using its world position + size
         Gizmos.DrawWireCube(hitbox.bounds.center, hitbox.bounds.size);
     }
+
+
+    private void UpdateNearestEnemy()
+    {
+        nearestEnemy = null;
+        float nearestDistSqr = Mathf.Infinity;
+        Vector2 currentPos = transform.position;
+
+        Collider2D[] hits = Physics2D.OverlapCircleAll(currentPos, enemyDetectRadius, enemyLayer);
+
+        foreach (Collider2D hit in hits)
+        {
+            float distSqr = (currentPos - (Vector2)hit.transform.position).sqrMagnitude;
+            if (distSqr < nearestDistSqr)
+            {
+                nearestDistSqr = distSqr;
+                nearestEnemy = hit.gameObject;
+                LockSprite.transform.position = nearestEnemy.transform.position;
+                //Debug.Log("Enemy detected");
+            }
+        }
+    }
+
+    private void TryAirAttack()
+    {
+        if (nearestEnemy == null) return;
+
+        Enemy enemy = nearestEnemy.GetComponent<Enemy>();
+
+        if (enemy == null || !enemy.IsAirborne) return;
+
+        float distSqr = ((Vector2)transform.position - (Vector2)nearestEnemy.transform.position).sqrMagnitude;
+
+        airAttack = true; // mark state as active
+
+        if (distSqr > gapCloserRangeSqr)
+        {
+            stateComplete = false;
+            isAirAttacking = true;
+            state = PlayerState.AirGapCloser;
+            StartAirGapCloser();
+        }
+        else
+        {
+            if (!isGroundAttacking)
+            {
+                stateComplete = false;
+                isGroundAttacking = true;
+                state = PlayerState.GroundAttack;
+                StartGroundAttack1();
+            }
+            else if (isGroundAttacking)
+            {
+                stateComplete = false;
+                SelectNextGroundAttack();
+            }
+        }
+    }
+
+    private void AddArcForceTowardsEnemy()
+    {
+        if (nearestEnemy == null) return;
+
+        Vector2 direction = ((Vector2)nearestEnemy.transform.position - rb.position).normalized;
+
+        // Blend the direct direction with a bit of "up"
+        Vector2 arcDirection = (direction + Vector2.up * arcUpwardBias).normalized;
+
+        rb.AddForce(arcDirection * airGapCloserForcevalue, ForceMode2D.Impulse);
+    }
+
+    #region HEALTH
+    public void TakeDamage(float damage)
+    {
+
+    }
+    #endregion
 }
